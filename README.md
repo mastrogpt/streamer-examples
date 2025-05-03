@@ -31,6 +31,12 @@ Three action are deployed:
 | `hello/stream`       | False | Called by the `hello/call` action     |
 | `hello/thread`       | True  | This action will start the stream in a separate thread   |
 
+With these three actions, a simple web page is deployed.
+
+![Web Example](imgs/web.webp)
+
+You can call the actions using the three buttons.
+
 ## Examples
 
 ### Action hello/call

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Streamer Testing</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+        // Function to create a baseurl and fill it inside the input on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const baseUrlInput = document.getElementById("baseurl");
+            const userNameInput = document.getElementById("username");
+            if (!baseUrlInput) return;
+            const { protocol, hostname, port } = window.location;
+
+            // Extract domain (last two segments, or 'localhost')
+            const domainParts = hostname.split('.');
+            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.indexOf('localhost') !== -1;
+            console.log('isLocalhost', isLocalhost);
+            console.log('domainParts', domainParts);
+
+            const username = domainParts[0];
+            const domain = isLocalhost
+                ? 'localhost'
+                : domainParts.slice(-2).join('.');
+
+            // Construct new URL
+            const streamerHost = 'stream';
+            const streamerPort = isLocalhost ? ':8082' : port ? ':' + port : '';
+            const newUrl = `${protocol}//${streamerHost}.${domain}${streamerPort}`;
+
+            baseUrlInput.value = newUrl;
+            if (hostname !== 'localhost' && username != '') {
+                userNameInput.value = username;
+            }
+
+        });
+
+        // Function to handle the button click and send the request
+        async function sendRequest(to) {
+            const baseUrl = document.getElementById("baseurl").value || 'http://localhost:8082';
+            const username = document.getElementById("username").value || 'nuvolaris';
+            const input = document.getElementById("input").value;
+            const auth = document.getElementById("auth").value;
+
+            if (String(baseUrl).length == 0) {
+                alert("Please enter baseUrl.");
+                return;
+            }
+            if (String(username).length == 0) {
+                alert("Please enter username.");
+                return;
+            }
+
+            const outputDiv = document.getElementById("output");
+            outputDiv.innerHTML = ""; // Clear previous output
+
+            headers = {
+                'Content-Type': 'application/json'
+            };
+
+            switch (to) {
+                case 'thread':
+                    to = baseUrl + '/web/' + username + '/stream/thread';
+                    break;
+                case 'no-thread':
+                    to = baseUrl + '/web/' + username + '/stream/nothread';
+                    break;
+                case 'call':
+                    to = baseUrl + '/web/' + username + '/stream/call';
+                    if (String(auth).length == 0) {
+                        alert("Please enter an auth header.");
+                        return;
+                    }
+                    headers['Authorization'] = auth;
+                    break;
+            }
+
+
+            try {
+                const response = await fetch(to, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ input })
+                });
+
+                if (!response.body) {
+                    outputDiv.innerHTML = "No stream available.";
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    if (value) {
+                        const json = JSON.parse(decoder.decode(value));
+                        if (json.output) {
+                            outputDiv.innerHTML += json.output;
+                        }
+                    }
+                }
+            } catch (error) {
+                outputDiv.innerHTML = "Error: " + error.message;
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Apache OpenServerless™ Streamer Test</a>
+        </div>
+    </nav>
+
+    <div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+        <div class="d-flex justify-content-between" style="width: 90%;">
+            <div class="w-50 p-4 border rounded bg-light shadow me-2">
+                <h2 class="text-center mb-4">Streamer testing</h2>
+
+                <div class="form">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Base Url</label>
+                        <input type="text" class="form-control" id="baseurl" name="baseurl" placeholder="Streamer URL"
+                            value="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username"
+                            placeholder="Insert your username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Text to stream</label>
+                        <input type="text" class="form-control" id="input" name="input"
+                            placeholder="Text to sent to the server">
+                    </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Auth Token</label>
+                        <input type="text" class="form-control" id="auth" name="auth"
+                            placeholder="Paste here your wsk auth token">
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <button class="btn btn-primary me-2 w-50 text-nowrap" style="height: 50px;"
+                            onclick="sendRequest('thread')">Stream Thread</button>
+                        <span class="text-muted w-50">Streams data using threads in the action.</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <button class="btn btn-secondary me-2 w-50 text-nowrap" style="height: 50px;"
+                            onclick="sendRequest('no-thread')">Stream No Thread</button>
+                        <span class="text-muted w-50">Streams data without threads.</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-danger me-2 w-50 text-nowrap" style="height: 50px;"
+                            onclick="sendRequest('call')">Stream Call</button>
+                        <span class="text-muted w-50">Streams data with a backend action. Requires the auth
+                            token.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="w-50 p-4 border rounded bg-light shadow ms-2">
+                <h2 class="text-center mb-4">Output</h2>
+                <p>Output will be displayed here:</p>
+                <div>
+                    <pre id="output"></div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
