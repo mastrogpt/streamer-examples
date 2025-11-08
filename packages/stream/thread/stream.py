@@ -14,7 +14,7 @@ def stream(args):
                 s.connect((stream_host, int(stream_port)))
                 print(f"Streaming to {stream_host}:{stream_port}")
                 for c in inp:
-                    print("Sending char %c ASCII %d" % (c, ord(c)))
+                    print("Sending char %c ASCII %d\n" % (c, ord(c)))
                     msg = {"output": "Char '%c' ASCII %d\n" %(c, ord(c))} 
                     s.sendall(json.dumps(msg).encode('utf-8'))
                     time.sleep(2)
